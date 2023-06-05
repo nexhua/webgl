@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html><head>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 vPosition;
+    attribute vec4 vColor;
+    varying vec4 fColor;
+
+    uniform vec3 theta;
+    uniform float vScale;
+    uniform float vTranslationAngle;
+    uniform float radius;
+   
+    void
+    main()
+    {             
+        // Compute the sines and cosines of theta for each of the three axes in one computation.
+        vec3 angles = radians( theta );
+        vec3 c = cos( angles ) * vScale;
+        vec3 s = sin( angles ) * vScale;
+    
+        // Remeber: thse matrices are column-major
+        mat4 rx = mat4( 1.0,  0.0,  0.0, 0.0,
+                0.0,  c.x,  s.x, 0.0,
+                0.0, -s.x,  c.x, 0.0,
+                0.0,  0.0,  0.0, 1.0 );
+    
+        mat4 ry = mat4( c.y, 0.0, -s.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                s.y, 0.0,  c.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+    
+    
+        mat4 rz = mat4( c.z, s.z, 0.0, 0.0,
+                -s.z,  c.z, 0.0, 0.0,
+                0.0,  0.0, 1.0, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+    
+        fColor = vColor;
+        gl_Position = rz * ry * rx * vPosition;
+        gl_Position.z = -gl_Position.z;
+        
+        // Rotation calculations
+
+        float rad = radians( vTranslationAngle );
+
+        gl_Position.x += radius * cos(rad);
+        gl_Position.y += radius * sin(rad);
+ 
+    }
+
+
+    </script>
+    
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    
+    varying vec4 fColor;
+
+    void
+    main()
+    {
+        gl_FragColor = fColor;
+    }
+    </script>
+    
+    <script type="text/javascript" src="./dependencies/webgl-utils.js"></script>
+    <script type="text/javascript" src="./dependencies/initShaders.js"></script>
+    <script type="text/javascript" src="./dependencies/move.js"></script>    
+    <script type="text/javascript" src="hw3.js"></script>
+    </head>
+    
+    <body style="margin:0%">
+    <canvas id="canvas" width="800px" height="800px">
+    Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+
+    <div>
+        <p>Buttons to Control Central Cube</p>
+        <button id="center-xButton">Rotate X</button>
+        <button id="center-yButton">Rotate Y</button>
+        <button id="center-zButton">Rotate Z</button>
+        
+
+        <br />
+        <button id="center-stop">Start/Stop Rotate Around Center</button>
+        <span>Speed: </span>
+        <span id="center-speed-info">2</span>
+        <input id="center-speed-slider" type="range" min="-5" max="5" value="2" >
+        <br />
+        <button id="center-stop-scale">Start/Stop Scale</button>
+        
+    </div>
+
+    <div>
+        <p>Buttons to Control Secondary Cube</p>
+        <button id="secondary-xButton">Rotate X</button>
+        <button id="secondary-yButton">Rotate Y</button>
+        <button id="secondary-zButton">Rotate Z</button>
+        
+
+        <br />
+        <button id="secondary-stop">Start/Stop Rotate Around Center</button>
+        <span>Speed: </span>
+        <span id="secondary-speed-info">2</span>
+        <input id="secondary-speed-slider" type="range" min="-5" max="5" value="2" >
+
+        <br />
+        <button id="secondary-orbital-stop">Start/Stop Rotate Around Orbit</button>
+        <span>Speed: </span>
+        <span id="secondary-rotation-speed-info">1</span>
+        <input id="secondary-rotation-speed-slider" type="range" min="-5" max="5" value="1" >
+ 
+        
+    </div>
+
+    
+    
+    </body></html>

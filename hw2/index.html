@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html><head>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 vPosition;
+
+    uniform float vScale;
+    uniform float vTime;
+    uniform float vFreq;
+    uniform float vAmplitude;
+    uniform float vLength;
+
+    varying float vyOffset;
+    
+    float getDegree(float x) {
+        return x * 360.0 / vLength;
+    }
+   
+    void
+    main()
+    {       
+        float relativeX = mod(abs(vPosition.x), vLength);
+
+        float offset = vAmplitude * sin(3.14159265359 * getDegree(relativeX) / 180.0 + vTime * vFreq);
+
+        vyOffset = vPosition.y +  offset;
+      
+        gl_Position = vec4(vPosition.x * vScale, vPosition.y * vScale + offset, vPosition.zw); 
+    }
+
+
+    </script>
+    
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    
+    uniform vec4 fColor;
+    varying float vyOffset;
+    
+    void
+    main()
+    {
+        gl_FragColor = vec4(cos(vyOffset),fColor.yzw);
+    }
+    </script>
+    
+    <script type="text/javascript" src="./dependencies/webgl-utils.js"></script>
+    <script type="text/javascript" src="./dependencies/initShaders.js"></script>
+    <script type="text/javascript" src="flag.js"></script>
+    </head>
+    
+    <body style="margin:0%">
+    <canvas id="flag-canvas" width="1200px" height="800px">
+    Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    
+    
+    </body></html>
