@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html><head>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 vPosition;
+    attribute vec4 vColor;
+
+    uniform vec3 theta;
+    uniform vec4 vTranslation;
+    varying vec4 fColor;
+   
+    void
+    main()
+    {             
+        vec3 angles = radians( theta );
+        vec3 c = cos( angles );
+        vec3 s = sin( angles );
+    
+        // Remeber: thse matrices are column-major
+        mat4 rx = mat4( 1.0,  0.0,  0.0, 0.0,
+                0.0,  c.x,  s.x, 0.0,
+                0.0, -s.x,  c.x, 0.0,
+                0.0,  0.0,  0.0, 1.0 );
+    
+        mat4 ry = mat4( c.y, 0.0, -s.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                s.y, 0.0,  c.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+    
+    
+        mat4 rz = mat4( c.z, s.z, 0.0, 0.0,
+                -s.z,  c.z, 0.0, 0.0,
+                0.0,  0.0, 1.0, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+
+
+        fColor = vColor;
+        gl_Position = rz * ry * rx * vPosition;
+        gl_Position.z = -gl_Position.z;
+        gl_Position += vTranslation;
+    }
+
+
+    </script>
+    
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    
+    varying vec4 fColor;
+
+    void
+    main()
+    {
+        gl_FragColor = fColor;
+    }
+    </script>
+    
+    <script type="text/javascript" src="./dependencies/webgl-utils.js"></script>
+    <script type="text/javascript" src="./dependencies/initShaders.js"></script>
+    <script type="text/javascript" src="./dependencies/move.js"></script>    
+    <script type="text/javascript" src="final.js"></script>
+    </head>
+    
+    <body style="margin:0%">
+    <canvas id="canvas" width="800" height="800">
+    Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+
+    
+    <input id="thrust-slider" type="range" min="999.995" max="1000.005" value="1000" step="0.001"><span id="thrust-info"></span> <br />
+
+    <button id="yaw-incr">&larr;</button>
+    <button id="yaw-dec">&rarr;</button>
+
+    </body></html>
