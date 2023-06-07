@@ -65,8 +65,6 @@ const uv_mappings = [
   vec2(1, 0),
 ];
 
-var pointsend = 0;
-
 window.addEventListener("load", () => {
   const program = init();
 
@@ -88,33 +86,35 @@ window.addEventListener("load", () => {
   const cube = new Cube();
   const platform = new Platform();
   const sphere = new Sphere();
-  const cylinder = new Cylinder();
 
   // Bind buffers
-  bindBuffers(program, cube, platform, sphere, cylinder);
+  bindBuffers(program, cube, platform, sphere);
 
-  drawScene(program, cube, platform, sphere, cylinder);
+  drawScene(program, cube, platform, sphere);
 });
+
+let vertices_count = 0;
 
 /**
  * @param {WebGLProgram} program
  * @param {Cube} cube
  * @param {Platform} platform
  * @param {Sphere} sphere
- * @param {Cylinder} cylinder
  */
-function drawScene(program, cube, platform, sphere, cylinder) {
+function drawScene(program, cube, platform, sphere) {
   GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
-  drawCube(program, cube);
+  vertices_count = 0;
+
   drawPlatform(program, platform);
   drawSphere(program, sphere);
-  drawCyclinder(program, cylinder);
+
+  drawCube(program, cube);
 
   updateCamera(program);
 
   window.requestAnimationFrame(function () {
-    drawScene(program, cube, platform, sphere, cylinder);
+    drawScene(program, cube, platform, sphere);
   });
 }
 
@@ -145,14 +145,18 @@ function updateCamera(program) {
 function drawPlatform(program, platform) {
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
 
-  let matrix = m4.translation(...platform.tranlation);
+  let matrix = m4.translation(...platform.translation);
   matrix = m4.scale(matrix, ...platform.scale);
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
 
   GL.bindTexture(GL.TEXTURE_2D, platform.texture);
   GL.activeTexture(GL.TEXTURE0);
 
-  GL.drawArrays(GL.TRIANGLES, 36, 72);
+  GL.drawArrays(
+    GL.TRIANGLES,
+    vertices_count,
+    (vertices_count += platform.points.length)
+  );
 }
 
 /**
@@ -180,6 +184,7 @@ function drawCube(program, cube) {
 
   let matrix = m4.translation(...cube.translation);
   matrix = m4.multiply(matrix, m4.zRotation(cube.theta[2] * 5));
+  matrix = m4.multiply(matrix, m4.scaling(...cube.scale));
 
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
@@ -187,30 +192,56 @@ function drawCube(program, cube) {
   GL.bindTexture(GL.TEXTURE_2D, cube.texture);
   GL.activeTexture(GL.TEXTURE0);
 
-  GL.drawArrays(GL.TRIANGLES, 0, 36);
+  GL.drawArrays(
+    GL.TRIANGLES,
+    vertices_count,
+    (vertices_count += cube.points.length)
+  );
 }
 
+/**
+ *
+ * @param {WebGLProgram} program
+ * @param {Sphere} sphere
+ */
 function drawSphere(program, sphere) {
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
-  var matrix = m4.scaling(0.2, 0.2, 0.2);
-  matrix = m4.translate(matrix, 4, 4, 0);
+
+  var matrix = m4.scaling(...sphere.scale);
+  matrix = m4.translate(matrix, ...sphere.translation);
 
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
-  pointsend = 72 + sphere.points.length;
 
   GL.bindTexture(GL.TEXTURE_2D, sphere.texture);
   GL.activeTexture(GL.TEXTURE0);
 
-  GL.drawArrays(GL.TRIANGLES, 72, 72 + sphere.points.length);
+  GL.drawArrays(
+    GL.TRIANGLES,
+    vertices_count,
+    (vertices_count += sphere.points.length)
+  );
 }
 
+/**
+ *
+ * @param {WebGLProgram} program
+ * @param {Cylinder} cylinder
+ */
 function drawCyclinder(program, cylinder) {
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
-  var matrix = m4.scaling(0.1, 0.1, 0.1);
-  matrix = m4.translate(matrix, 1, 1, 0);
+  var matrix = m4.scaling(...cylinder.scale);
+  matrix = m4.translate(matrix, ...cylinder.translation);
 
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
-  GL.drawArrays(GL.TRIANGLES, pointsend, pointsend + cylinder.points.length);
+
+  GL.bindTexture(GL.TEXTURE_2D, cylinder.texture);
+  GL.activeTexture(GL.TEXTURE0);
+
+  GL.drawArrays(
+    GL.TRIANGLES,
+    vertices_count,
+    (vertices_count += cylinder.points.length)
+  );
 }
 
 /**
@@ -218,20 +249,14 @@ function drawCyclinder(program, cylinder) {
  * @param {Cube} cube
  * @param {Platform} platform
  * @param {Sphere} sphere
- * @param {Cylinder} cylinder
  */
-function bindBuffers(program, cube, platform, sphere, cylinder) {
+function bindBuffers(program, cube, platform, sphere) {
   // COLOR
   var colorBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, colorBuffer);
   GL.bufferData(
     GL.ARRAY_BUFFER,
-    flatten(
-      cube.colors
-        .concat(platform.colors)
-        .concat(sphere.colors)
-        .concat(cylinder.colors)
-    ),
+    flatten(platform.colors.concat(sphere.colors).concat(cube.colors)),
     GL.STATIC_DRAW
   );
 
@@ -240,10 +265,7 @@ function bindBuffers(program, cube, platform, sphere, cylinder) {
   GL.enableVertexAttribArray(vColor);
 
   // VERTEX
-  const all_points = cube.points
-    .concat(platform.points)
-    .concat(sphere.points)
-    .concat(cylinder.points);
+  const all_points = platform.points.concat(sphere.points).concat(cube.points);
 
   var verticesBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, verticesBuffer);
@@ -259,9 +281,9 @@ function bindBuffers(program, cube, platform, sphere, cylinder) {
   GL.bufferData(
     GL.ARRAY_BUFFER,
     flatten(
-      cube.texture_mappings
-        .concat(platform.texture_mappings)
+      platform.texture_mappings
         .concat(sphere.texture_mappings)
+        .concat(cube.texture_mappings)
     ),
     GL.STATIC_DRAW
   );
@@ -276,60 +298,33 @@ function bindBuffers(program, cube, platform, sphere, cylinder) {
   var sphere_image = document.getElementById("sphere-texture");
 
   // ROCKET TEXTURE
-  var rocketTexture = GL.createTexture();
-  GL.bindTexture(GL.TEXTURE_2D, rocketTexture);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
-
-  GL.texImage2D(
-    GL.TEXTURE_2D,
-    0,
-    GL.RGBA,
-    GL.RGBA,
-    GL.UNSIGNED_BYTE,
-    rocket_image
-  );
-
+  var rocketTexture = createTexture(rocket_image);
   cube.texture = rocketTexture;
 
   // PLATFORM TEXTURE
-  var platformTexture = GL.createTexture();
-  GL.bindTexture(GL.TEXTURE_2D, platformTexture);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
-  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
-
-  GL.texImage2D(
-    GL.TEXTURE_2D,
-    0,
-    GL.RGBA,
-    GL.RGBA,
-    GL.UNSIGNED_BYTE,
-    platform_image
-  );
-
+  var platformTexture = createTexture(platform_image);
   platform.texture = platformTexture;
 
   // SPHERE TEXTURE
-  var sphereTexture = GL.createTexture();
-  GL.bindTexture(GL.TEXTURE_2D, sphereTexture);
+  var sphereTexture = createTexture(sphere_image);
+  sphere.texture = sphereTexture;
+}
+
+/**
+ * @param {HTMLElement} image
+ * @returns {WebGLTexture}
+ */
+function createTexture(image) {
+  var texture = GL.createTexture();
+  GL.bindTexture(GL.TEXTURE_2D, texture);
   GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
   GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
   GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
   GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
-  GL.texImage2D(
-    GL.TEXTURE_2D,
-    0,
-    GL.RGBA,
-    GL.RGBA,
-    GL.UNSIGNED_BYTE,
-    sphere_image
-  );
 
-  sphere.texture = sphereTexture;
+  GL.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, GL.RGBA, GL.UNSIGNED_BYTE, image);
+
+  return texture;
 }
 
 /**
@@ -600,13 +595,14 @@ var m4 = {
 
 class Cube {
   constructor() {
-    const [points, colors, texture_mappings] = colorCube();
-    this.points = points;
-    this.colors = colors;
-    this.texture_mappings = texture_mappings;
+    const data = cylinder();
+    this.points = data.TriangleVertices;
+    this.colors = data.TriangleVertexColors;
+    this.texture_mappings = data.texture_mappings;
     this.texture = undefined;
     this.theta = [0, 0, 0];
     this.translation = [0.0, 0.0, 0.0, 0.0];
+    this.scale = [0.5, 0.5, 0.5];
     this.weight = 100.0;
     this.gravity = 10.0;
     this.thrust = 1000.0;
@@ -653,13 +649,13 @@ class Cube {
 class Platform {
   constructor() {
     const [points, c, texture_mappings] = colorCube();
-    const colors = points.map((p) => [WHITE.r, WHITE.g, WHITE.b, WHITE.a]);
+    const colors = points.map((c) => [WHITE.r, WHITE.g, WHITE.b, WHITE.a]);
     this.points = points;
     this.colors = colors;
     this.texture_mappings = texture_mappings;
     this.texture = undefined;
-    this.tranlation = [0, -1.0, 0];
-    this.scale = [1.5, 0.2, 1.5];
+    this.translation = [0, -0.8, 0];
+    this.scale = [3.5, 0.2, 3.5];
   }
 }
 
@@ -670,6 +666,8 @@ class Sphere {
     this.colors = data.TriangleVertexColors;
     this.texture_mappings = data.TextureCoordinates;
     this.texture = undefined;
+    this.translation = [4.0, 4.0, -1];
+    this.scale = [0.2, 0.2, 0.2];
   }
 }
 
@@ -678,6 +676,10 @@ class Cylinder {
     var data = cylinder();
     this.points = data.TriangleVertices;
     this.colors = data.TriangleVertexColors;
+    this.texture_mappings = data.texture_mappings;
+    this.texture = undefined;
+    this.translation = [1, 1, 0];
+    this.scale = [0.5, 0.5, 0.5];
   }
 }
 
@@ -807,6 +809,7 @@ function cylinder(numSlices, numStacks, caps) {
   var cylinderNormals = [];
   var cylinderVertexColors = [];
   var cylinderTextureCoordinates = [];
+  var texture_mappings = [];
 
   // side
 
@@ -854,6 +857,8 @@ function cylinder(numSlices, numStacks, caps) {
         normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]
       );
       normal = [normal[0] / mag, normal[1] / mag, normal[2] / mag];
+      let iter = i % 6;
+
       cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
       cylinderVertexColors.push(sideColor);
       cylinderNormals.push([normal[0], normal[1], normal[2]]);
@@ -861,6 +866,8 @@ function cylinder(numSlices, numStacks, caps) {
         (i + 1) / slices,
         (j * (top - bottom)) / stacks,
       ]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([b[0], b[1], b[2], 1.0]);
       cylinderVertexColors.push(sideColor);
@@ -869,6 +876,8 @@ function cylinder(numSlices, numStacks, caps) {
         i / slices,
         ((j - 1) * (top - bottom)) / stacks,
       ]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
       cylinderVertexColors.push(sideColor);
@@ -877,6 +886,8 @@ function cylinder(numSlices, numStacks, caps) {
         (i + 1) / slices,
         ((j - 1) * (top - bottom)) / stacks,
       ]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
       cylinderVertexColors.push(sideColor);
@@ -885,6 +896,8 @@ function cylinder(numSlices, numStacks, caps) {
         (i + 1) / slices,
         (j * (top - bottom)) / stacks,
       ]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
       cylinderVertexColors.push(sideColor);
@@ -893,6 +906,8 @@ function cylinder(numSlices, numStacks, caps) {
         (i + 1) / slices,
         ((j - 1) * (top - bottom)) / stacks,
       ]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([d[0], d[1], d[2], 1.0]);
       cylinderVertexColors.push(sideColor);
@@ -901,6 +916,8 @@ function cylinder(numSlices, numStacks, caps) {
         (i + 1) / slices,
         (j * (top - bottom)) / stacks,
       ]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
     }
   }
 
@@ -932,20 +949,28 @@ function cylinder(numSlices, numStacks, caps) {
       var a = [0.0, top, 0.0, 1.0];
       var b = topPoints[i];
       var c = topPoints[i + 1];
+
+      let iter = i % 6;
       cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
       cylinderVertexColors.push(topColor);
       cylinderNormals.push(normal);
       cylinderTextureCoordinates.push([0, 1]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([b[0], b[1], b[2], 1.0]);
       cylinderVertexColors.push(topColor);
       cylinderNormals.push(normal);
       cylinderTextureCoordinates.push([0, 1]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
       cylinderVertexColors.push(topColor);
       cylinderNormals.push(normal);
       cylinderTextureCoordinates.push([0, 1]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
     }
 
     //bottom
@@ -955,20 +980,27 @@ function cylinder(numSlices, numStacks, caps) {
       var a = [0.0, bottom, 0.0, 1.0];
       var b = bottomPoints[i];
       var c = bottomPoints[i + 1];
+      let iter = i % 6;
       cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
       cylinderVertexColors.push(bottomColor);
       cylinderNormals.push(normal);
       cylinderTextureCoordinates.push([0, 1]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([b[0], b[1], b[2], 1.0]);
       cylinderVertexColors.push(bottomColor);
       cylinderNormals.push(normal);
       cylinderTextureCoordinates.push([0, 1]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
 
       cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
       cylinderVertexColors.push(bottomColor);
       cylinderNormals.push(normal);
       cylinderTextureCoordinates.push([0, 1]);
+      texture_mappings.push(uv_mappings[iter % 6]);
+      iter += 1;
     }
   }
 
@@ -976,5 +1008,6 @@ function cylinder(numSlices, numStacks, caps) {
   data.TriangleNormals = cylinderNormals;
   data.TriangleVertexColors = cylinderVertexColors;
   data.TextureCoordinates = cylinderTextureCoordinates;
+  data.texture_mappings = texture_mappings;
   return data;
 }
