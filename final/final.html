@@ -7,36 +7,17 @@
     uniform vec3 theta;
     uniform vec4 vTranslation;
     varying vec4 fColor;
-   
+
+    uniform mat4 u_matrix;
+    uniform mat4 u_projection;
+    uniform mat4 u_modelView;
+    
     void
     main()
     {             
-        vec3 angles = radians( theta );
-        vec3 c = cos( angles );
-        vec3 s = sin( angles );
-    
-        // Remeber: thse matrices are column-major
-        mat4 rx = mat4( 1.0,  0.0,  0.0, 0.0,
-                0.0,  c.x,  s.x, 0.0,
-                0.0, -s.x,  c.x, 0.0,
-                0.0,  0.0,  0.0, 1.0 );
-    
-        mat4 ry = mat4( c.y, 0.0, -s.y, 0.0,
-                0.0, 1.0,  0.0, 0.0,
-                s.y, 0.0,  c.y, 0.0,
-                0.0, 0.0,  0.0, 1.0 );
-    
-    
-        mat4 rz = mat4( c.z, s.z, 0.0, 0.0,
-                -s.z,  c.z, 0.0, 0.0,
-                0.0,  0.0, 1.0, 0.0,
-                0.0,  0.0, 0.0, 1.0 );
-
-
         fColor = vColor;
-        gl_Position = rz * ry * rx * vPosition;
-        gl_Position.z = -gl_Position.z;
-        gl_Position += vTranslation;
+        
+        gl_Position = u_projection * u_modelView * u_matrix * vPosition;
     }
 
 
@@ -70,5 +51,18 @@
 
     <button id="yaw-incr">&larr;</button>
     <button id="yaw-dec">&rarr;</button>
+
+    <p>Camera settings</p>
+    <button id="Button1">Increase Z</button>
+<button id="Button2">Decrease Z</button>
+<button id="Button3">Increase R</button>
+<button id="Button4">Decrease R</button>
+
+<p> </p>
+<button id="Button5">Increase theta</button>
+<button id="Button6">Decrease theta</button>
+<button id="Button7">Increase phi</button>
+<button id="Button8">Decrease phi</button>
+<p> </p>
 
     </body></html>

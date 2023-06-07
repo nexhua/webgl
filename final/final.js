@@ -37,6 +37,25 @@ const BLUE = { r: 0.0, g: 10.0 / 255.0, b: 200.0 / 255.0, a: 1.0 };
  */
 const WHITE = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
 
+var near = -1;
+var far = 1;
+var radius = 1.0;
+var theta = 0.0;
+var phi = 0.0;
+var dr = (5.0 * Math.PI) / 180.0;
+
+var left = -1.0;
+var right = 1.0;
+var ytop = 1.0;
+var bottom = -1.0;
+
+var mvMatrix, pMatrix;
+var modelView, projection;
+var eye;
+
+const at = vec3(0.0, 0.0, 0.0);
+const up = vec3(0.0, 1.0, 0.0);
+
 window.addEventListener("load", () => {
   const program = init();
 
@@ -44,9 +63,20 @@ window.addEventListener("load", () => {
     return;
   }
 
+  const matrixLoc = GL.getUniformLocation(program, "u_matrix");
+  const projectionLoc = GL.getUniformLocation(program, "u_projection");
+  const modelViewLoc = GL.getUniformLocation(program, "u_modelView");
+
+  mvMatrix = m4.identity();
+  pMatrix = m4.identity();
+
+  GL.uniformMatrix4fv(matrixLoc, false, m4.identity());
+  GL.uniformMatrix4fv(projectionLoc, false, m4.identity());
+  GL.uniformMatrix4fv(modelViewLoc, false, m4.identity());
+
   const cube = new Cube();
 
-  bindBuffers(program, cube);
+  bindBuffersCube(program, cube);
 
   drawScene(program, cube);
 });
@@ -60,8 +90,14 @@ function drawScene(program, cube) {
 
   drawCube(program, cube);
 
-  // DRAW
-  GL.drawArrays(GL.TRIANGLES, 0, 36);
+  eye = vec3(
+    radius * Math.sin(phi),
+    radius * Math.sin(theta),
+    radius * Math.cos(phi)
+  );
+
+  mvMatrix = lookAt(eye, at, up);
+  pMatrix = ortho(left, right, bottom, ytop, near, far);
 
   window.requestAnimationFrame(function () {
     drawScene(program, cube);
@@ -86,17 +122,24 @@ function drawCube(program, cube) {
   const acceleration_x = thrust_x / cube.weight;
   const displacement_x = -1 * (1 / 2) * acceleration_x * Math.pow(cube.time, 2);
 
-  cube.time += 0.0000000001;
+  cube.time += 0.00000001;
 
   cube.translation[1] += displacement_y;
   cube.translation[0] += displacement_x;
 
-  const translationLoc = GL.getUniformLocation(program, "vTranslation");
-  const thetaLoc = GL.getUniformLocation(program, "theta");
-  GL.uniform4fv(translationLoc, cube.translation);
-  const theta = [...cube.theta].map((a) => a * 100);
+  let matrix = m4.translation(...cube.translation);
+  matrix = m4.multiply(matrix, m4.zRotation(cube.theta[2]));
 
-  GL.uniform3fv(thetaLoc, theta);
+  const matrixLoc = GL.getUniformLocation(program, "u_matrix");
+  GL.uniformMatrix4fv(matrixLoc, false, matrix);
+
+  const projectionLoc = GL.getUniformLocation(program, "u_projection");
+  const modelViewLoc = GL.getUniformLocation(program, "u_modelView");
+
+  GL.uniformMatrix4fv(modelViewLoc, false, flatten(mvMatrix));
+  GL.uniformMatrix4fv(projectionLoc, false, flatten(pMatrix));
+
+  GL.drawArrays(GL.TRIANGLES, 0, 36);
 }
 
 /**
@@ -104,7 +147,7 @@ function drawCube(program, cube) {
  * @param {WebGLProgram} program
  * @param {Cube} cube
  */
-function bindBuffers(program, cube) {
+function bindBuffersCube(program, cube) {
   var colorBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, colorBuffer);
   GL.bufferData(GL.ARRAY_BUFFER, flatten(cube.colors), GL.STATIC_DRAW);
@@ -154,6 +197,33 @@ function init() {
   GL.useProgram(program);
 
   GL.enable(GL.DEPTH_TEST);
+
+  document.getElementById("Button1").onclick = function () {
+    near *= 1.1;
+    far *= 1.1;
+  };
+  document.getElementById("Button2").onclick = function () {
+    near *= 0.9;
+    far *= 0.9;
+  };
+  document.getElementById("Button3").onclick = function () {
+    radius *= 1.1;
+  };
+  document.getElementById("Button4").onclick = function () {
+    radius *= 0.9;
+  };
+  document.getElementById("Button5").onclick = function () {
+    theta += dr;
+  };
+  document.getElementById("Button6").onclick = function () {
+    theta -= dr;
+  };
+  document.getElementById("Button7").onclick = function () {
+    phi += dr;
+  };
+  document.getElementById("Button8").onclick = function () {
+    phi -= dr;
+  };
 
   return program;
 }
@@ -227,6 +297,136 @@ function quad(a, b, c, d) {
 
   return [quadPoints, quadColors];
 }
+
+var m4 = {
+  projection: function (width, height, depth) {
+    // Note: This matrix flips the Y axis so 0 is at the top.
+    return [
+      2 / width,
+      0,
+      0,
+      0,
+      0,
+      -2 / height,
+      0,
+      0,
+      0,
+      0,
+      2 / depth,
+      0,
+      -1,
+      1,
+      0,
+      1,
+    ];
+  },
+
+  multiply: function (a, b) {
+    var a00 = a[0 * 4 + 0];
+    var a01 = a[0 * 4 + 1];
+    var a02 = a[0 * 4 + 2];
+    var a03 = a[0 * 4 + 3];
+    var a10 = a[1 * 4 + 0];
+    var a11 = a[1 * 4 + 1];
+    var a12 = a[1 * 4 + 2];
+    var a13 = a[1 * 4 + 3];
+    var a20 = a[2 * 4 + 0];
+    var a21 = a[2 * 4 + 1];
+    var a22 = a[2 * 4 + 2];
+    var a23 = a[2 * 4 + 3];
+    var a30 = a[3 * 4 + 0];
+    var a31 = a[3 * 4 + 1];
+    var a32 = a[3 * 4 + 2];
+    var a33 = a[3 * 4 + 3];
+    var b00 = b[0 * 4 + 0];
+    var b01 = b[0 * 4 + 1];
+    var b02 = b[0 * 4 + 2];
+    var b03 = b[0 * 4 + 3];
+    var b10 = b[1 * 4 + 0];
+    var b11 = b[1 * 4 + 1];
+    var b12 = b[1 * 4 + 2];
+    var b13 = b[1 * 4 + 3];
+    var b20 = b[2 * 4 + 0];
+    var b21 = b[2 * 4 + 1];
+    var b22 = b[2 * 4 + 2];
+    var b23 = b[2 * 4 + 3];
+    var b30 = b[3 * 4 + 0];
+    var b31 = b[3 * 4 + 1];
+    var b32 = b[3 * 4 + 2];
+    var b33 = b[3 * 4 + 3];
+    return [
+      b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
+      b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
+      b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
+      b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33,
+      b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30,
+      b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31,
+      b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32,
+      b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33,
+      b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30,
+      b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31,
+      b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32,
+      b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33,
+      b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30,
+      b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
+      b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
+      b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33,
+    ];
+  },
+
+  translation: function (tx, ty, tz) {
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, tx, ty, tz, 1];
+  },
+
+  xRotation: function (angleInRadians) {
+    var c = Math.cos(angleInRadians);
+    var s = Math.sin(angleInRadians);
+
+    return [1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1];
+  },
+
+  yRotation: function (angleInRadians) {
+    var c = Math.cos(angleInRadians);
+    var s = Math.sin(angleInRadians);
+
+    return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1];
+  },
+
+  zRotation: function (angleInRadians) {
+    var c = Math.cos(angleInRadians);
+    var s = Math.sin(angleInRadians);
+
+    return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  },
+
+  scaling: function (sx, sy, sz) {
+    return [sx, 0, 0, 0, 0, sy, 0, 0, 0, 0, sz, 0, 0, 0, 0, 1];
+  },
+
+  translate: function (m, tx, ty, tz) {
+    return m4.multiply(m, m4.translation(tx, ty, tz));
+  },
+
+  xRotate: function (m, angleInRadians) {
+    return m4.multiply(m, m4.xRotation(angleInRadians));
+  },
+
+  yRotate: function (m, angleInRadians) {
+    return m4.multiply(m, m4.yRotation(angleInRadians));
+  },
+
+  zRotate: function (m, angleInRadians) {
+    return m4.multiply(m, m4.zRotation(angleInRadians));
+  },
+
+  scale: function (m, sx, sy, sz) {
+    return m4.multiply(m, m4.scaling(sx, sy, sz));
+  },
+
+  identity: function () {
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  },
+};
 
 class Cube {
   constructor() {
