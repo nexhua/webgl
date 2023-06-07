@@ -39,10 +39,10 @@ const WHITE = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
 
 var near = -1;
 var far = 1;
-var radius = 1.0;
-var theta = 0.0;
-var phi = 0.0;
+var radius = 0.5;
 var dr = (5.0 * Math.PI) / 180.0;
+var theta = 0.0 + 5 * dr;
+var phi = 0.0 + 5 * dr;
 
 var left = -1.0;
 var right = 1.0;
@@ -75,21 +75,37 @@ window.addEventListener("load", () => {
   GL.uniformMatrix4fv(modelViewLoc, false, m4.identity());
 
   const cube = new Cube();
+  const platform = new Cube();
 
+  // Bind buffers
   bindBuffersCube(program, cube);
+  bindBuffersCube(program, platform);
 
-  drawScene(program, cube);
+  drawScene(program, cube, platform);
 });
 
 /**
  * @param {WebGLProgram} program
  * @param {Cube} cube
+ * @param {Cube} platform
  */
-function drawScene(program, cube) {
+function drawScene(program, cube, platform) {
   GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
   drawCube(program, cube);
+  drawPlatform(program, platform);
 
+  updateCamera(program);
+
+  window.requestAnimationFrame(function () {
+    drawScene(program, cube, platform);
+  });
+}
+
+/**
+ * @param {WebGLProgram} program
+ */
+function updateCamera(program) {
   eye = vec3(
     radius * Math.sin(phi),
     radius * Math.sin(theta),
@@ -99,9 +115,25 @@ function drawScene(program, cube) {
   mvMatrix = lookAt(eye, at, up);
   pMatrix = ortho(left, right, bottom, ytop, near, far);
 
-  window.requestAnimationFrame(function () {
-    drawScene(program, cube);
-  });
+  const projectionLoc = GL.getUniformLocation(program, "u_projection");
+  const modelViewLoc = GL.getUniformLocation(program, "u_modelView");
+
+  GL.uniformMatrix4fv(modelViewLoc, false, flatten(mvMatrix));
+  GL.uniformMatrix4fv(projectionLoc, false, flatten(pMatrix));
+}
+
+/**
+ * @param {WebGLProgram}
+ * @param {Cube} platform
+ */
+function drawPlatform(program, platform) {
+  const matrixLoc = GL.getUniformLocation(program, "u_matrix");
+
+  let matrix = m4.translation(0, -0.8, 0);
+  matrix = m4.scale(matrix, 1.5, 0.1, 1.5);
+  GL.uniformMatrix4fv(matrixLoc, false, matrix);
+
+  GL.drawArrays(GL.TRIANGLES, 0, 36);
 }
 
 /**
@@ -132,12 +164,6 @@ function drawCube(program, cube) {
 
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
-
-  const projectionLoc = GL.getUniformLocation(program, "u_projection");
-  const modelViewLoc = GL.getUniformLocation(program, "u_modelView");
-
-  GL.uniformMatrix4fv(modelViewLoc, false, flatten(mvMatrix));
-  GL.uniformMatrix4fv(projectionLoc, false, flatten(pMatrix));
 
   GL.drawArrays(GL.TRIANGLES, 0, 36);
 }
