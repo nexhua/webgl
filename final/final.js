@@ -147,6 +147,9 @@ function drawPlatform(program, platform) {
 
   let matrix = m4.translation(...platform.translation);
   matrix = m4.scale(matrix, ...platform.scale);
+  matrix = m4.multiply(matrix, m4.xRotation(toRadian(platform.rotation[0])));
+  matrix = m4.multiply(matrix, m4.yRotation(toRadian(platform.rotation[1])));
+  matrix = m4.multiply(matrix, m4.zRotation(toRadian(platform.rotation[2])));
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
 
   GL.bindTexture(GL.TEXTURE_2D, platform.texture);
@@ -639,8 +642,145 @@ class Platform {
     this.texture_mappings = texture_mappings;
     this.texture = undefined;
     this.translation = [0, -0.8, 0];
-    this.scale = [3.5, 0.2, 3.5];
+    this.scale = [3.5, 0.1, 3.5];
     this.rotation = [0, 0, 0];
+
+    document
+      .getElementById("platform-translate-x-incr")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "x", "incr"),
+        false
+      );
+    document
+      .getElementById("platform-translate-x-dec")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "x", "dec"),
+        false
+      );
+    document
+      .getElementById("platform-translate-y-incr")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "y", "incr"),
+        false
+      );
+    document
+      .getElementById("platform-translate-y-dec")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "y", "dec"),
+        false
+      );
+    document
+      .getElementById("platform-translate-z-incr")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "z", "incr"),
+        false
+      );
+    document
+      .getElementById("platform-translate-z-dec")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "z", "dec"),
+        false
+      );
+    document
+      .getElementById("platform-rotate-x-incr")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "x", "incr"),
+        false
+      );
+    document
+      .getElementById("platform-rotate-x-dec")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "x", "dec"),
+        false
+      );
+    document
+      .getElementById("platform-rotate-y-incr")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "y", "incr"),
+        false
+      );
+    document
+      .getElementById("platform-rotate-y-dec")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "y", "dec"),
+        false
+      );
+    document
+      .getElementById("platform-rotate-z-incr")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "z", "incr"),
+        false
+      );
+    document
+      .getElementById("platform-rotate-z-dec")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "z", "dec"),
+        false
+      );
+  }
+
+  handleRotateEvent(axis, type) {
+    switch (axis) {
+      case "x":
+        if (type === "incr") {
+          this.rotation[0] += 5.0;
+        } else {
+          this.rotation[0] -= 5.0;
+        }
+        break;
+      case "y":
+        if (type === "incr") {
+          this.rotation[1] += 5.0;
+        } else {
+          this.rotation[1] -= 5.0;
+        }
+        break;
+      case "z":
+        if (type === "incr") {
+          this.rotation[2] += 5.0;
+        } else {
+          this.rotation[2] -= 5.0;
+        }
+        break;
+    }
+  }
+
+  handleTranslateEvents(axis, type) {
+    switch (axis) {
+      case "x":
+        if (type === "incr") {
+          this.translation[0] += 0.1;
+        } else {
+          this.translation[0] -= 0.1;
+        }
+        break;
+      case "y":
+        if (type === "incr") {
+          this.translation[1] += 0.1;
+        } else {
+          this.translation[1] -= 0.1;
+        }
+        break;
+      case "z":
+        if (type === "incr") {
+          this.translation[2] += 0.1;
+        } else {
+          this.translation[2] -= 0.1;
+        }
+        break;
+    }
   }
 }
 
