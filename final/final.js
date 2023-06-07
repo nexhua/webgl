@@ -65,6 +65,8 @@ const uv_mappings = [
   vec2(1, 0),
 ];
 
+var pointsend = 0;
+
 window.addEventListener("load", () => {
   const program = init();
 
@@ -85,28 +87,34 @@ window.addEventListener("load", () => {
 
   const cube = new Cube();
   const platform = new Platform();
+  const sphere = new Sphere();
+  const cylinder = new Cylinder();
 
   // Bind buffers
-  bindBuffers(program, cube, platform);
+  bindBuffers(program, cube, platform, sphere, cylinder);
 
-  drawScene(program, cube, platform);
+  drawScene(program, cube, platform, sphere, cylinder);
 });
 
 /**
  * @param {WebGLProgram} program
  * @param {Cube} cube
  * @param {Platform} platform
+ * @param {Sphere} sphere
+ * @param {Cylinder} cylinder
  */
-function drawScene(program, cube, platform) {
+function drawScene(program, cube, platform, sphere, cylinder) {
   GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
   drawCube(program, cube);
   drawPlatform(program, platform);
+  drawSphere(program, sphere);
+  drawCyclinder(program, cylinder);
 
   updateCamera(program);
 
   window.requestAnimationFrame(function () {
-    drawScene(program, cube, platform);
+    drawScene(program, cube, platform, sphere, cylinder);
   });
 }
 
@@ -182,18 +190,48 @@ function drawCube(program, cube) {
   GL.drawArrays(GL.TRIANGLES, 0, 36);
 }
 
+function drawSphere(program, sphere) {
+  const matrixLoc = GL.getUniformLocation(program, "u_matrix");
+  var matrix = m4.scaling(0.2, 0.2, 0.2);
+  matrix = m4.translate(matrix, 4, 4, 0);
+
+  GL.uniformMatrix4fv(matrixLoc, false, matrix);
+  pointsend = 72 + sphere.points.length;
+
+  GL.bindTexture(GL.TEXTURE_2D, sphere.texture);
+  GL.activeTexture(GL.TEXTURE0);
+
+  GL.drawArrays(GL.TRIANGLES, 72, 72 + sphere.points.length);
+}
+
+function drawCyclinder(program, cylinder) {
+  const matrixLoc = GL.getUniformLocation(program, "u_matrix");
+  var matrix = m4.scaling(0.1, 0.1, 0.1);
+  matrix = m4.translate(matrix, 1, 1, 0);
+
+  GL.uniformMatrix4fv(matrixLoc, false, matrix);
+  GL.drawArrays(GL.TRIANGLES, pointsend, pointsend + cylinder.points.length);
+}
+
 /**
  * @param {WebGLProgram} program
  * @param {Cube} cube
  * @param {Platform} platform
+ * @param {Sphere} sphere
+ * @param {Cylinder} cylinder
  */
-function bindBuffers(program, cube, platform) {
+function bindBuffers(program, cube, platform, sphere, cylinder) {
   // COLOR
   var colorBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, colorBuffer);
   GL.bufferData(
     GL.ARRAY_BUFFER,
-    flatten(cube.colors.concat(platform.colors)),
+    flatten(
+      cube.colors
+        .concat(platform.colors)
+        .concat(sphere.colors)
+        .concat(cylinder.colors)
+    ),
     GL.STATIC_DRAW
   );
 
@@ -202,7 +240,10 @@ function bindBuffers(program, cube, platform) {
   GL.enableVertexAttribArray(vColor);
 
   // VERTEX
-  const all_points = cube.points.concat(platform.points);
+  const all_points = cube.points
+    .concat(platform.points)
+    .concat(sphere.points)
+    .concat(cylinder.points);
 
   var verticesBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, verticesBuffer);
@@ -217,7 +258,11 @@ function bindBuffers(program, cube, platform) {
   GL.bindBuffer(GL.ARRAY_BUFFER, textureBuffer);
   GL.bufferData(
     GL.ARRAY_BUFFER,
-    flatten(cube.texture_mappings.concat(platform.texture_mappings)),
+    flatten(
+      cube.texture_mappings
+        .concat(platform.texture_mappings)
+        .concat(sphere.texture_mappings)
+    ),
     GL.STATIC_DRAW
   );
 
@@ -228,6 +273,7 @@ function bindBuffers(program, cube, platform) {
   // TEXTURE CREATION
   var platform_image = document.getElementById("platform-texture");
   var rocket_image = document.getElementById("rocket-texture");
+  var sphere_image = document.getElementById("sphere-texture");
 
   // ROCKET TEXTURE
   var rocketTexture = GL.createTexture();
@@ -266,6 +312,24 @@ function bindBuffers(program, cube, platform) {
   );
 
   platform.texture = platformTexture;
+
+  // SPHERE TEXTURE
+  var sphereTexture = GL.createTexture();
+  GL.bindTexture(GL.TEXTURE_2D, sphereTexture);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
+  GL.texImage2D(
+    GL.TEXTURE_2D,
+    0,
+    GL.RGBA,
+    GL.RGBA,
+    GL.UNSIGNED_BYTE,
+    sphere_image
+  );
+
+  sphere.texture = sphereTexture;
 }
 
 /**
@@ -597,4 +661,320 @@ class Platform {
     this.tranlation = [0, -1.0, 0];
     this.scale = [1.5, 0.2, 1.5];
   }
+}
+
+class Sphere {
+  constructor() {
+    var data = sphere();
+    this.points = data.TriangleVertices;
+    this.colors = data.TriangleVertexColors;
+    this.texture_mappings = data.TextureCoordinates;
+    this.texture = undefined;
+  }
+}
+
+class Cylinder {
+  constructor() {
+    var data = cylinder();
+    this.points = data.TriangleVertices;
+    this.colors = data.TriangleVertexColors;
+  }
+}
+
+function sphere(numSubdivisions) {
+  var subdivisions = 3;
+  if (numSubdivisions) subdivisions = numSubdivisions;
+
+  var data = {};
+
+  //var radius = 0.5;
+
+  var sphereVertexCoordinates = [];
+  var sphereVertexCoordinatesNormals = [];
+  var sphereVertexColors = [];
+  var sphereTextureCoordinates = [];
+  var sphereNormals = [];
+
+  var va = vec4(0.0, 0.0, -1.0, 1);
+  var vb = vec4(0.0, 0.942809, 0.333333, 1);
+  var vc = vec4(-0.816497, -0.471405, 0.333333, 1);
+  var vd = vec4(0.816497, -0.471405, 0.333333, 1);
+
+  function triangle(a, b, c) {
+    sphereVertexCoordinates.push([a[0], a[1], a[2], 1]);
+    sphereVertexCoordinates.push([b[0], b[1], b[2], 1]);
+    sphereVertexCoordinates.push([c[0], c[1], c[2], 1]);
+
+    // normals are vectors
+
+    sphereNormals.push([a[0], a[1], a[2]]);
+    sphereNormals.push([b[0], b[1], b[2]]);
+    sphereNormals.push([c[0], c[1], c[2]]);
+
+    sphereVertexColors.push([
+      (1 + a[0]) / 2.0,
+      (1 + a[1]) / 2.0,
+      (1 + a[2]) / 2.0,
+      1.0,
+    ]);
+    sphereVertexColors.push([
+      (1 + b[0]) / 2.0,
+      (1 + b[1]) / 2.0,
+      (1 + b[2]) / 2.0,
+      1.0,
+    ]);
+    sphereVertexColors.push([
+      (1 + c[0]) / 2.0,
+      (1 + c[1]) / 2.0,
+      (1 + c[2]) / 2.0,
+      1.0,
+    ]);
+
+    sphereTextureCoordinates.push([
+      (0.5 * Math.acos(a[0])) / Math.PI,
+      (0.5 * Math.asin(a[1] / Math.sqrt(1.0 - a[0] * a[0]))) / Math.PI,
+    ]);
+    sphereTextureCoordinates.push([
+      (0.5 * Math.acos(b[0])) / Math.PI,
+      (0.5 * Math.asin(b[1] / Math.sqrt(1.0 - b[0] * b[0]))) / Math.PI,
+    ]);
+    sphereTextureCoordinates.push([
+      (0.5 * Math.acos(c[0])) / Math.PI,
+      (0.5 * Math.asin(c[1] / Math.sqrt(1.0 - c[0] * c[0]))) / Math.PI,
+    ]);
+
+    //sphereTextureCoordinates.push([0.5+Math.asin(a[0])/Math.PI, 0.5+Math.asin(a[1])/Math.PI]);
+    //sphereTextureCoordinates.push([0.5+Math.asin(b[0])/Math.PI, 0.5+Math.asin(b[1])/Math.PI]);
+    //sphereTextureCoordinates.push([0.5+Math.asin(c[0])/Math.PI, 0.5+Math.asin(c[1])/Math.PI]);
+  }
+
+  function divideTriangle(a, b, c, count) {
+    if (count > 0) {
+      var ab = mix(a, b, 0.5);
+      var ac = mix(a, c, 0.5);
+      var bc = mix(b, c, 0.5);
+
+      ab = normalize(ab, true);
+      ac = normalize(ac, true);
+      bc = normalize(bc, true);
+
+      divideTriangle(a, ab, ac, count - 1);
+      divideTriangle(ab, b, bc, count - 1);
+      divideTriangle(bc, c, ac, count - 1);
+      divideTriangle(ab, bc, ac, count - 1);
+    } else {
+      triangle(a, b, c);
+    }
+  }
+
+  function tetrahedron(a, b, c, d, n) {
+    divideTriangle(a, b, c, n);
+    divideTriangle(d, c, b, n);
+    divideTriangle(a, d, b, n);
+    divideTriangle(a, c, d, n);
+  }
+
+  tetrahedron(va, vb, vc, vd, subdivisions);
+
+  data.TriangleVertices = sphereVertexCoordinates;
+  //data.TriangleNormals = sphereNormals;
+  data.TriangleVertexColors = sphereVertexColors;
+  data.TextureCoordinates = sphereTextureCoordinates;
+  return data;
+}
+
+function cylinder(numSlices, numStacks, caps) {
+  var slices = 36;
+  if (numSlices) slices = numSlices;
+  var stacks = 1;
+  if (numStacks) stacks = numStacks;
+  var capsFlag = true;
+  if (caps == false) capsFlag = caps;
+
+  var data = {};
+
+  var top = 0.5;
+  var bottom = -0.5;
+  var radius = 0.5;
+  var topCenter = [0.0, top, 0.0];
+  var bottomCenter = [0.0, bottom, 0.0];
+
+  var sideColor = [1.0, 0.0, 0.0, 1.0];
+  var topColor = [0.0, 1.0, 0.0, 1.0];
+  var bottomColor = [0.0, 0.0, 1.0, 1.0];
+
+  var cylinderVertexCoordinates = [];
+  var cylinderNormals = [];
+  var cylinderVertexColors = [];
+  var cylinderTextureCoordinates = [];
+
+  // side
+
+  for (var j = 0; j < stacks; j++) {
+    var stop = bottom + ((j + 1) * (top - bottom)) / stacks;
+    var sbottom = bottom + (j * (top - bottom)) / stacks;
+    var topPoints = [];
+    var bottomPoints = [];
+    var topST = [];
+    var bottomST = [];
+    for (var i = 0; i < slices; i++) {
+      var theta = (2.0 * i * Math.PI) / slices;
+      topPoints.push([
+        radius * Math.sin(theta),
+        stop,
+        radius * Math.cos(theta),
+        1.0,
+      ]);
+      bottomPoints.push([
+        radius * Math.sin(theta),
+        sbottom,
+        radius * Math.cos(theta),
+        1.0,
+      ]);
+    }
+
+    topPoints.push([0.0, stop, radius, 1.0]);
+    bottomPoints.push([0.0, sbottom, radius, 1.0]);
+
+    for (var i = 0; i < slices; i++) {
+      var a = topPoints[i];
+      var d = topPoints[i + 1];
+      var b = bottomPoints[i];
+      var c = bottomPoints[i + 1];
+      var u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      var v = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
+
+      var normal = [
+        u[1] * v[2] - u[2] * v[1],
+        u[2] * v[0] - u[0] * v[2],
+        u[0] * v[1] - u[1] * v[0],
+      ];
+
+      var mag = Math.sqrt(
+        normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]
+      );
+      normal = [normal[0] / mag, normal[1] / mag, normal[2] / mag];
+      cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
+      cylinderVertexColors.push(sideColor);
+      cylinderNormals.push([normal[0], normal[1], normal[2]]);
+      cylinderTextureCoordinates.push([
+        (i + 1) / slices,
+        (j * (top - bottom)) / stacks,
+      ]);
+
+      cylinderVertexCoordinates.push([b[0], b[1], b[2], 1.0]);
+      cylinderVertexColors.push(sideColor);
+      cylinderNormals.push([normal[0], normal[1], normal[2]]);
+      cylinderTextureCoordinates.push([
+        i / slices,
+        ((j - 1) * (top - bottom)) / stacks,
+      ]);
+
+      cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
+      cylinderVertexColors.push(sideColor);
+      cylinderNormals.push([normal[0], normal[1], normal[2]]);
+      cylinderTextureCoordinates.push([
+        (i + 1) / slices,
+        ((j - 1) * (top - bottom)) / stacks,
+      ]);
+
+      cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
+      cylinderVertexColors.push(sideColor);
+      cylinderNormals.push([normal[0], normal[1], normal[2]]);
+      cylinderTextureCoordinates.push([
+        (i + 1) / slices,
+        (j * (top - bottom)) / stacks,
+      ]);
+
+      cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
+      cylinderVertexColors.push(sideColor);
+      cylinderNormals.push([normal[0], normal[1], normal[2]]);
+      cylinderTextureCoordinates.push([
+        (i + 1) / slices,
+        ((j - 1) * (top - bottom)) / stacks,
+      ]);
+
+      cylinderVertexCoordinates.push([d[0], d[1], d[2], 1.0]);
+      cylinderVertexColors.push(sideColor);
+      cylinderNormals.push([normal[0], normal[1], normal[2]]);
+      cylinderTextureCoordinates.push([
+        (i + 1) / slices,
+        (j * (top - bottom)) / stacks,
+      ]);
+    }
+  }
+
+  var topPoints = [];
+  var bottomPoints = [];
+  for (var i = 0; i < slices; i++) {
+    var theta = (2.0 * i * Math.PI) / slices;
+    topPoints.push([
+      radius * Math.sin(theta),
+      top,
+      radius * Math.cos(theta),
+      1.0,
+    ]);
+    bottomPoints.push([
+      radius * Math.sin(theta),
+      bottom,
+      radius * Math.cos(theta),
+      1.0,
+    ]);
+  }
+  topPoints.push([0.0, top, radius, 1.0]);
+  bottomPoints.push([0.0, bottom, radius, 1.0]);
+
+  if (capsFlag) {
+    //top
+
+    for (i = 0; i < slices; i++) {
+      normal = [0.0, 1.0, 0.0];
+      var a = [0.0, top, 0.0, 1.0];
+      var b = topPoints[i];
+      var c = topPoints[i + 1];
+      cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
+      cylinderVertexColors.push(topColor);
+      cylinderNormals.push(normal);
+      cylinderTextureCoordinates.push([0, 1]);
+
+      cylinderVertexCoordinates.push([b[0], b[1], b[2], 1.0]);
+      cylinderVertexColors.push(topColor);
+      cylinderNormals.push(normal);
+      cylinderTextureCoordinates.push([0, 1]);
+
+      cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
+      cylinderVertexColors.push(topColor);
+      cylinderNormals.push(normal);
+      cylinderTextureCoordinates.push([0, 1]);
+    }
+
+    //bottom
+
+    for (i = 0; i < slices; i++) {
+      normal = [0.0, -1.0, 0.0];
+      var a = [0.0, bottom, 0.0, 1.0];
+      var b = bottomPoints[i];
+      var c = bottomPoints[i + 1];
+      cylinderVertexCoordinates.push([a[0], a[1], a[2], 1.0]);
+      cylinderVertexColors.push(bottomColor);
+      cylinderNormals.push(normal);
+      cylinderTextureCoordinates.push([0, 1]);
+
+      cylinderVertexCoordinates.push([b[0], b[1], b[2], 1.0]);
+      cylinderVertexColors.push(bottomColor);
+      cylinderNormals.push(normal);
+      cylinderTextureCoordinates.push([0, 1]);
+
+      cylinderVertexCoordinates.push([c[0], c[1], c[2], 1.0]);
+      cylinderVertexColors.push(bottomColor);
+      cylinderNormals.push(normal);
+      cylinderTextureCoordinates.push([0, 1]);
+    }
+  }
+
+  data.TriangleVertices = cylinderVertexCoordinates;
+  data.TriangleNormals = cylinderNormals;
+  data.TriangleVertexColors = cylinderVertexColors;
+  data.TextureCoordinates = cylinderTextureCoordinates;
+  return data;
 }
