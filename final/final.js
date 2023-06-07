@@ -39,7 +39,7 @@ const WHITE = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
 
 var near = -1;
 var far = 1;
-var radius = 0.5;
+var radius = 0.1;
 var dr = (5.0 * Math.PI) / 180.0;
 var theta = 0.0 + 5 * dr;
 var phi = 0.0 + 5 * dr;
@@ -55,6 +55,15 @@ var eye;
 
 const at = vec3(0.0, 0.0, 0.0);
 const up = vec3(0.0, 1.0, 0.0);
+
+const uv_mappings = [
+  vec2(0, 0),
+  vec2(0, 1),
+  vec2(1, 0),
+  vec2(0, 1),
+  vec2(1, 1),
+  vec2(1, 0),
+];
 
 window.addEventListener("load", () => {
   const program = init();
@@ -132,6 +141,9 @@ function drawPlatform(program, platform) {
   matrix = m4.scale(matrix, ...platform.scale);
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
 
+  GL.bindTexture(GL.TEXTURE_2D, platform.texture);
+  GL.activeTexture(GL.TEXTURE0);
+
   GL.drawArrays(GL.TRIANGLES, 36, 72);
 }
 
@@ -159,10 +171,13 @@ function drawCube(program, cube) {
   cube.translation[0] += displacement_x;
 
   let matrix = m4.translation(...cube.translation);
-  matrix = m4.multiply(matrix, m4.zRotation(cube.theta[2]));
+  matrix = m4.multiply(matrix, m4.zRotation(cube.theta[2] * 5));
 
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
+
+  GL.bindTexture(GL.TEXTURE_2D, cube.texture);
+  GL.activeTexture(GL.TEXTURE0);
 
   GL.drawArrays(GL.TRIANGLES, 0, 36);
 }
@@ -173,6 +188,7 @@ function drawCube(program, cube) {
  * @param {Platform} platform
  */
 function bindBuffers(program, cube, platform) {
+  // COLOR
   var colorBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, colorBuffer);
   GL.bufferData(
@@ -185,17 +201,71 @@ function bindBuffers(program, cube, platform) {
   GL.vertexAttribPointer(vColor, 4, GL.FLOAT, false, 0, 0);
   GL.enableVertexAttribArray(vColor);
 
+  // VERTEX
+  const all_points = cube.points.concat(platform.points);
+
   var verticesBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, verticesBuffer);
-  GL.bufferData(
-    GL.ARRAY_BUFFER,
-    flatten(cube.points.concat(platform.points)),
-    GL.STATIC_DRAW
-  );
+  GL.bufferData(GL.ARRAY_BUFFER, flatten(all_points), GL.STATIC_DRAW);
 
   var vPosition = GL.getAttribLocation(program, "vPosition");
   GL.vertexAttribPointer(vPosition, 4, GL.FLOAT, false, 0, 0);
   GL.enableVertexAttribArray(vPosition);
+
+  // TEXTURE
+  var textureBuffer = GL.createBuffer();
+  GL.bindBuffer(GL.ARRAY_BUFFER, textureBuffer);
+  GL.bufferData(
+    GL.ARRAY_BUFFER,
+    flatten(cube.texture_mappings.concat(platform.texture_mappings)),
+    GL.STATIC_DRAW
+  );
+
+  var texCoord = GL.getAttribLocation(program, "a_texcoord");
+  GL.vertexAttribPointer(texCoord, 2, GL.FLOAT, false, 0, 0);
+  GL.enableVertexAttribArray(texCoord);
+
+  // TEXTURE CREATION
+  var platform_image = document.getElementById("platform-texture");
+  var rocket_image = document.getElementById("rocket-texture");
+
+  // ROCKET TEXTURE
+  var rocketTexture = GL.createTexture();
+  GL.bindTexture(GL.TEXTURE_2D, rocketTexture);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
+
+  GL.texImage2D(
+    GL.TEXTURE_2D,
+    0,
+    GL.RGBA,
+    GL.RGBA,
+    GL.UNSIGNED_BYTE,
+    rocket_image
+  );
+
+  cube.texture = rocketTexture;
+
+  // PLATFORM TEXTURE
+  var platformTexture = GL.createTexture();
+  GL.bindTexture(GL.TEXTURE_2D, platformTexture);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
+
+  GL.texImage2D(
+    GL.TEXTURE_2D,
+    0,
+    GL.RGBA,
+    GL.RGBA,
+    GL.UNSIGNED_BYTE,
+    platform_image
+  );
+
+  platform.texture = platformTexture;
 }
 
 /**
@@ -267,16 +337,17 @@ function init() {
  * @returns {Array<Array<number[]>>}
  */
 function colorCube() {
-  const [q0_v, q0_c] = quad(1, 0, 3, 2);
-  const [q1_v, q1_c] = quad(2, 3, 7, 6);
-  const [q2_v, q2_c] = quad(3, 0, 4, 7);
-  const [q3_v, q3_c] = quad(6, 5, 1, 2);
-  const [q4_v, q4_c] = quad(4, 5, 6, 7);
-  const [q5_v, q5_c] = quad(5, 4, 0, 1);
+  const [q0_v, q0_c, q0_tm] = quad(1, 0, 3, 2);
+  const [q1_v, q1_c, q1_tm] = quad(2, 3, 7, 6);
+  const [q2_v, q2_c, q2_tm] = quad(3, 0, 4, 7);
+  const [q3_v, q3_c, q3_tm] = quad(6, 5, 1, 2);
+  const [q4_v, q4_c, q4_tm] = quad(4, 5, 6, 7);
+  const [q5_v, q5_c, q5_tm] = quad(5, 4, 0, 1);
 
   return [
     [].concat(q0_v, q1_v, q2_v, q3_v, q4_v, q5_v),
     [].concat(q0_c, q1_c, q2_c, q3_c, q4_c, q5_c),
+    [].concat(q0_tm, q1_tm, q2_tm, q3_tm, q4_tm, q5_tm),
   ];
 }
 
@@ -322,13 +393,15 @@ function quad(a, b, c, d) {
 
   var quadPoints = [];
   var quadColors = [];
+  var quadTexMap = [];
 
   for (var i = 0; i < indices.length; ++i) {
     quadPoints.push(vertices[indices[i]]);
     quadColors.push(vertexColors[a]);
+    quadTexMap.push(uv_mappings[i % 6]);
   }
 
-  return [quadPoints, quadColors];
+  return [quadPoints, quadColors, quadTexMap];
 }
 
 var m4 = {
@@ -463,9 +536,11 @@ var m4 = {
 
 class Cube {
   constructor() {
-    const [points, colors] = colorCube();
+    const [points, colors, texture_mappings] = colorCube();
     this.points = points;
     this.colors = colors;
+    this.texture_mappings = texture_mappings;
+    this.texture = undefined;
     this.theta = [0, 0, 0];
     this.translation = [0.0, 0.0, 0.0, 0.0];
     this.weight = 100.0;
@@ -513,11 +588,13 @@ class Cube {
 
 class Platform {
   constructor() {
-    const [points] = colorCube();
-    const colors = points.map((p) => [RED.r, RED.g, RED.b, RED.a]);
+    const [points, c, texture_mappings] = colorCube();
+    const colors = points.map((p) => [WHITE.r, WHITE.g, WHITE.b, WHITE.a]);
     this.points = points;
     this.colors = colors;
-    this.tranlation = [0, -0.8, 0];
+    this.texture_mappings = texture_mappings;
+    this.texture = undefined;
+    this.tranlation = [0, -1.0, 0];
     this.scale = [1.5, 0.2, 1.5];
   }
 }

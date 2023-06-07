@@ -3,20 +3,20 @@
     <script id="vertex-shader" type="x-shader/x-vertex">
     attribute vec4 vPosition;
     attribute vec4 vColor;
-
-    uniform vec3 theta;
-    uniform vec4 vTranslation;
     varying vec4 fColor;
 
     uniform mat4 u_matrix;
     uniform mat4 u_projection;
     uniform mat4 u_modelView;
+
+    attribute vec2 a_texcoord;
+    varying vec2 v_texcoord;
     
     void
     main()
     {             
         fColor = vColor;
-        
+        v_texcoord = a_texcoord;
         gl_Position = u_projection * u_modelView * u_matrix * vPosition;
     }
 
@@ -27,11 +27,14 @@
     precision mediump float;
     
     varying vec4 fColor;
+    varying vec2 v_texcoord;
+    uniform sampler2D u_texture0;
+    uniform sampler2D u_texture1;
 
     void
     main()
     {
-        gl_FragColor = fColor;
+        gl_FragColor = texture2D(u_texture0, v_texcoord);
     }
     </script>
     
@@ -64,5 +67,9 @@
 <button id="Button7">Increase phi</button>
 <button id="Button8">Decrease phi</button>
 <p> </p>
+
+
+    <img id="platform-texture" src="./textures/platform-texture.png" hidden="true">
+    <img id="rocket-texture" src="./textures/rocket-texture.jpg" hidden="true">
 
     </body></html>
