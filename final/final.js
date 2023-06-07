@@ -75,11 +75,10 @@ window.addEventListener("load", () => {
   GL.uniformMatrix4fv(modelViewLoc, false, m4.identity());
 
   const cube = new Cube();
-  const platform = new Cube();
+  const platform = new Platform();
 
   // Bind buffers
-  bindBuffersCube(program, cube);
-  bindBuffersCube(program, platform);
+  bindBuffers(program, cube, platform);
 
   drawScene(program, cube, platform);
 });
@@ -87,7 +86,7 @@ window.addEventListener("load", () => {
 /**
  * @param {WebGLProgram} program
  * @param {Cube} cube
- * @param {Cube} platform
+ * @param {Platform} platform
  */
 function drawScene(program, cube, platform) {
   GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
@@ -124,16 +123,16 @@ function updateCamera(program) {
 
 /**
  * @param {WebGLProgram}
- * @param {Cube} platform
+ * @param {Platform} platform
  */
 function drawPlatform(program, platform) {
   const matrixLoc = GL.getUniformLocation(program, "u_matrix");
 
-  let matrix = m4.translation(0, -0.8, 0);
-  matrix = m4.scale(matrix, 1.5, 0.1, 1.5);
+  let matrix = m4.translation(...platform.tranlation);
+  matrix = m4.scale(matrix, ...platform.scale);
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
 
-  GL.drawArrays(GL.TRIANGLES, 0, 36);
+  GL.drawArrays(GL.TRIANGLES, 36, 72);
 }
 
 /**
@@ -169,14 +168,18 @@ function drawCube(program, cube) {
 }
 
 /**
- *
  * @param {WebGLProgram} program
  * @param {Cube} cube
+ * @param {Platform} platform
  */
-function bindBuffersCube(program, cube) {
+function bindBuffers(program, cube, platform) {
   var colorBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, colorBuffer);
-  GL.bufferData(GL.ARRAY_BUFFER, flatten(cube.colors), GL.STATIC_DRAW);
+  GL.bufferData(
+    GL.ARRAY_BUFFER,
+    flatten(cube.colors.concat(platform.colors)),
+    GL.STATIC_DRAW
+  );
 
   var vColor = GL.getAttribLocation(program, "vColor");
   GL.vertexAttribPointer(vColor, 4, GL.FLOAT, false, 0, 0);
@@ -184,7 +187,11 @@ function bindBuffersCube(program, cube) {
 
   var verticesBuffer = GL.createBuffer();
   GL.bindBuffer(GL.ARRAY_BUFFER, verticesBuffer);
-  GL.bufferData(GL.ARRAY_BUFFER, flatten(cube.points), GL.STATIC_DRAW);
+  GL.bufferData(
+    GL.ARRAY_BUFFER,
+    flatten(cube.points.concat(platform.points)),
+    GL.STATIC_DRAW
+  );
 
   var vPosition = GL.getAttribLocation(program, "vPosition");
   GL.vertexAttribPointer(vPosition, 4, GL.FLOAT, false, 0, 0);
@@ -501,5 +508,16 @@ class Cube {
         this.theta[2] += -0.01;
         break;
     }
+  }
+}
+
+class Platform {
+  constructor() {
+    const [points] = colorCube();
+    const colors = points.map((p) => [RED.r, RED.g, RED.b, RED.a]);
+    this.points = points;
+    this.colors = colors;
+    this.tranlation = [0, -0.8, 0];
+    this.scale = [1.5, 0.2, 1.5];
   }
 }
