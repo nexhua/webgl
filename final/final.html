@@ -1,77 +1,136 @@
 <!DOCTYPE html>
-<html><head>
+<html>
+  <head>
     <script id="vertex-shader" type="x-shader/x-vertex">
-    attribute vec4 vPosition;
-    attribute vec4 vColor;
-    varying vec4 fColor;
+      attribute vec4 vPosition;
+      attribute vec4 vColor;
+      varying vec4 fColor;
 
-    uniform mat4 u_matrix;
-    uniform mat4 u_projection;
-    uniform mat4 u_modelView;
+      uniform mat4 u_matrix;
+      uniform mat4 u_projection;
+      uniform mat4 u_modelView;
 
-    attribute vec2 a_texcoord;
-    varying vec2 v_texcoord;
-    
-    void
-    main()
-    {             
-        fColor = vColor;
-        v_texcoord = a_texcoord;
-        gl_Position = u_projection * u_modelView * u_matrix * vPosition;
-    }
+      attribute vec2 a_texcoord;
+      varying vec2 v_texcoord;
 
-
+      void
+      main()
+      {
+          fColor = vColor;
+          v_texcoord = a_texcoord;
+          gl_Position = u_projection * u_modelView * u_matrix * vPosition;
+      }
     </script>
-    
+
     <script id="fragment-shader" type="x-shader/x-fragment">
-    precision mediump float;
-    
-    varying vec4 fColor;
-    varying vec2 v_texcoord;
-    uniform sampler2D u_texture0;
-    uniform sampler2D u_texture1;
+      precision mediump float;
 
-    void
-    main()
-    {
-        gl_FragColor = texture2D(u_texture0, v_texcoord);
-    }
+      varying vec4 fColor;
+      varying vec2 v_texcoord;
+      uniform sampler2D u_texture0;
+      uniform sampler2D u_texture1;
+
+      void
+      main()
+      {
+          gl_FragColor = texture2D(u_texture0, v_texcoord);
+      }
     </script>
-    
+
     <script type="text/javascript" src="./dependencies/webgl-utils.js"></script>
     <script type="text/javascript" src="./dependencies/initShaders.js"></script>
-    <script type="text/javascript" src="./dependencies/move.js"></script>    
+    <script type="text/javascript" src="./dependencies/move.js"></script>
     <script type="text/javascript" src="final.js"></script>
-    </head>
-    
-    <body style="margin:0%">
+  </head>
+
+  <body style="margin: 0%">
     <canvas id="canvas" width="800" height="800">
-    Oops ... your browser doesn't support the HTML5 canvas element
+      Oops ... your browser doesn't support the HTML5 canvas element
     </canvas>
 
-    
-    <input id="thrust-slider" type="range" min="999.995" max="1000.005" value="1000" step="0.001"><span id="thrust-info"></span> <br />
-
-    <button id="yaw-incr">&larr;</button>
-    <button id="yaw-dec">&rarr;</button>
+    <div>
+      <p>Rocket Controls</p>
+      <input
+        id="thrust-slider"
+        type="range"
+        min="999.995"
+        max="1000.005"
+        value="1000"
+        step="0.001"
+      /><span id="thrust-info"></span>
+      <button id="yaw-incr">&larr;</button>
+      <button id="yaw-dec">&rarr;</button>
+    </div>
 
     <div>
-    <p>Camera settings</p>
-    <button id="Button1">Increase Z</button>
-    <button id="Button2">Decrease Z</button>
-    <button id="Button3">Increase R</button>
-    <button id="Button4">Decrease R</button>
-    
-    <p> </p>
-    <button id="Button5">Increase theta</button>
-    <button id="Button6">Decrease theta</button>
-    <button id="Button7">Increase phi</button>
-    <button id="Button8">Decrease phi</button>
-<p> </p>
-</div>
+      <p>Camera Settings</p>
+      <button id="Button1">Increase Z</button>
+      <button id="Button2">Decrease Z</button>
+      <button id="Button3">Increase R</button>
+      <button id="Button4">Decrease R</button>
 
-    <img id="platform-texture" src="./textures/platform-texture.png" hidden="true">
-    <img id="rocket-texture" src="./textures/rocket-carbon-texture.jpg" hidden="true">
-    <img id="sphere-texture" src="./textures/sphere-texture.png" hidden="true">
+      <p></p>
+      <button id="Button5">Increase theta</button>
+      <button id="Button6">Decrease theta</button>
+      <button id="Button7">Increase phi</button>
+      <button id="Button8">Decrease phi</button>
+      <p></p>
+    </div>
 
-    </body></html>
+    <div>
+      <p>Planet Controls</p>
+      <div style="display: flex; margin-right: 2%">
+        <div style="display: flex">
+          <div style="display: flex; flex-direction: column; margin-right: 1%">
+            <button id="planet-translate-x-incr">
+              Translate X - Increment
+            </button>
+            <button id="planet-translate-x-dec">Translate X - Decrement</button>
+          </div>
+          <div style="display: flex; flex-direction: column; margin-right: 1%">
+            <button id="planet-translate-y-incr">
+              Translate Y - Increment
+            </button>
+            <button id="planet-translate-y-dec">Translate Y - Decrement</button>
+          </div>
+          <div style="display: flex; flex-direction: column; margin-right: 1%">
+            <button id="planet-translate-z-incr">
+              Translate Z - Increment
+            </button>
+            <button id="planet-translate-z-dec">Translate Z - Decrement</button>
+          </div>
+        </div>
+        <div style="display: flex">
+          <div style="display: flex; flex-direction: column; margin-right: 1%">
+            <button id="planet-rotate-x-incr">Rotate X - Increment</button>
+            <button id="planet-rotate-x-dec">Rotate X - Decrement</button>
+          </div>
+          <div style="display: flex; flex-direction: column; margin-right: 1%">
+            <button id="planet-rotate-y-incr">Rotate Y - Increment</button>
+            <button id="planet-rotate-y-dec">Rotate Y - Decrement</button>
+          </div>
+          <div style="display: flex; flex-direction: column; margin-right: 1%">
+            <button id="planet-rotate-z-incr">Rotate Z - Increment</button>
+            <button id="planet-rotate-z-dec">Rotate Z - Decrement</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <img
+      id="platform-texture"
+      src="./textures/platform-texture.png"
+      hidden="true"
+    />
+    <img
+      id="rocket-texture"
+      src="./textures/rocket-carbon-texture.jpg"
+      hidden="true"
+    />
+    <img
+      id="sphere-texture"
+      src="./textures/sphere-texture.png"
+      hidden="true"
+    />
+  </body>
+</html>

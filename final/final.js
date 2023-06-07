@@ -209,6 +209,12 @@ function drawSphere(program, sphere) {
 
   var matrix = m4.scaling(...sphere.scale);
   matrix = m4.translate(matrix, ...sphere.translation);
+  matrix = m4.multiply(matrix, m4.xRotation(toRadian(sphere.rotation[0])));
+  matrix = m4.multiply(matrix, m4.yRotation(toRadian(sphere.rotation[1])));
+  matrix = m4.multiply(matrix, m4.zRotation(toRadian(sphere.rotation[2])));
+
+  sphere.updateRotation();
+  sphere.updateTranslation();
 
   GL.uniformMatrix4fv(matrixLoc, false, matrix);
 
@@ -219,28 +225,6 @@ function drawSphere(program, sphere) {
     GL.TRIANGLES,
     vertices_count,
     (vertices_count += sphere.points.length)
-  );
-}
-
-/**
- *
- * @param {WebGLProgram} program
- * @param {Cylinder} cylinder
- */
-function drawCyclinder(program, cylinder) {
-  const matrixLoc = GL.getUniformLocation(program, "u_matrix");
-  var matrix = m4.scaling(...cylinder.scale);
-  matrix = m4.translate(matrix, ...cylinder.translation);
-
-  GL.uniformMatrix4fv(matrixLoc, false, matrix);
-
-  GL.bindTexture(GL.TEXTURE_2D, cylinder.texture);
-  GL.activeTexture(GL.TEXTURE0);
-
-  GL.drawArrays(
-    GL.TRIANGLES,
-    vertices_count,
-    (vertices_count += cylinder.points.length)
   );
 }
 
@@ -600,9 +584,9 @@ class Cube {
     this.colors = data.TriangleVertexColors;
     this.texture_mappings = data.texture_mappings;
     this.texture = undefined;
-    this.theta = [0, 0, 0];
+    this.theta = [0, 0, 0.01];
     this.translation = [0.0, 0.0, 0.0, 0.0];
-    this.scale = [0.5, 0.5, 0.5];
+    this.scale = [0.2, 0.2, 0.2];
     this.weight = 100.0;
     this.gravity = 10.0;
     this.thrust = 1000.0;
@@ -656,6 +640,7 @@ class Platform {
     this.texture = undefined;
     this.translation = [0, -0.8, 0];
     this.scale = [3.5, 0.2, 3.5];
+    this.rotation = [0, 0, 0];
   }
 }
 
@@ -666,8 +651,183 @@ class Sphere {
     this.colors = data.TriangleVertexColors;
     this.texture_mappings = data.TextureCoordinates;
     this.texture = undefined;
-    this.translation = [4.0, 4.0, -1];
+    this.translation = [0, 4, 0];
     this.scale = [0.2, 0.2, 0.2];
+    this.rotation = [0, 0, 0];
+    this.directions = [true, true, true];
+
+    document
+      .getElementById("planet-translate-x-incr")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "x", "incr"),
+        false
+      );
+    document
+      .getElementById("planet-translate-x-dec")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "x", "dec"),
+        false
+      );
+    document
+      .getElementById("planet-translate-y-incr")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "y", "incr"),
+        false
+      );
+    document
+      .getElementById("planet-translate-y-dec")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "y", "dec"),
+        false
+      );
+    document
+      .getElementById("planet-translate-z-incr")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "z", "incr"),
+        false
+      );
+    document
+      .getElementById("planet-translate-z-dec")
+      .addEventListener(
+        "click",
+        this.handleTranslateEvents.bind(this, "z", "dec"),
+        false
+      );
+    document
+      .getElementById("planet-rotate-x-incr")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "x", "incr"),
+        false
+      );
+    document
+      .getElementById("planet-rotate-x-dec")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "x", "dec"),
+        false
+      );
+    document
+      .getElementById("planet-rotate-y-incr")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "y", "incr"),
+        false
+      );
+    document
+      .getElementById("planet-rotate-y-dec")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "y", "dec"),
+        false
+      );
+    document
+      .getElementById("planet-rotate-z-incr")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "z", "incr"),
+        false
+      );
+    document
+      .getElementById("planet-rotate-z-dec")
+      .addEventListener(
+        "click",
+        this.handleRotateEvent.bind(this, "z", "dec"),
+        false
+      );
+  }
+
+  updateRotation() {
+    for (let i = 0; i < this.rotation.length; i++) {
+      this.rotation[i] += 0.1;
+    }
+  }
+
+  handleRotateEvent(axis, type) {
+    switch (axis) {
+      case "x":
+        if (type === "incr") {
+          this.rotation[0] += 5.0;
+        } else {
+          this.rotation[0] -= 5.0;
+        }
+        break;
+      case "y":
+        if (type === "incr") {
+          this.rotation[1] += 5.0;
+        } else {
+          this.rotation[1] -= 5.0;
+        }
+        break;
+      case "z":
+        if (type === "incr") {
+          this.rotation[2] += 5.0;
+        } else {
+          this.rotation[2] -= 5.0;
+        }
+        break;
+    }
+  }
+
+  handleTranslateEvents(axis, type) {
+    switch (axis) {
+      case "x":
+        if (type === "incr") {
+          this.translation[0] += 1.0;
+        } else {
+          this.translation[0] -= 1.0;
+        }
+        break;
+      case "y":
+        if (type === "incr") {
+          this.translation[1] += 1.0;
+        } else {
+          this.translation[1] -= 1.0;
+        }
+        break;
+      case "z":
+        if (type === "incr") {
+          this.translation[2] += 1.0;
+        } else {
+          this.translation[2] -= 1.0;
+        }
+        break;
+    }
+  }
+
+  updateTranslation() {
+    if (this.directions[0]) {
+      this.translation[0] += 0.01;
+
+      if (this.translation[0] >= 4) {
+        this.directions[0] = false;
+      }
+    } else {
+      this.translation[0] -= 0.01;
+
+      if (this.translation[0] <= -4) {
+        this.directions[0] = true;
+      }
+    }
+
+    if (this.directions[1]) {
+      this.translation[1] += 0.001;
+
+      if (this.translation[1] >= 4) {
+        this.directions[1] = false;
+      }
+    } else {
+      this.translation[1] -= 0.001;
+
+      if (this.translation[1] <= 3) {
+        this.directions[1] = true;
+      }
+    }
   }
 }
 
@@ -680,7 +840,16 @@ class Cylinder {
     this.texture = undefined;
     this.translation = [1, 1, 0];
     this.scale = [0.5, 0.5, 0.5];
+    this.rotation = [0, 0, 0];
   }
+}
+
+/**
+ * @param {number} angleInDegrees
+ * @returns {number}
+ */
+function toRadian(angleInDegrees) {
+  return (angleInDegrees * Math.PI) / 180.0;
 }
 
 function sphere(numSubdivisions) {
